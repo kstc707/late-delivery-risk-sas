@@ -1,0 +1,9 @@
+# Raw data is downloaded separately (see data/README.md)
+data/*.csv
+# SAS output library and logs
+output/
+*.log
+*.lst
+*.sas7bdat
+__pycache__/
+.DS_Store

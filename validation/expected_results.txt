@@ -1,0 +1,136 @@
+
+========================================================================
+01  IMPORT AND QUALITY CHECKS
+========================================================================
+line items: 180,519   columns: 53
+orders: 65,752
+duplicate Order Item Id: 0
+missing Order Zipcode: 155,679 (86.2%)
+missing Product Description: 180,519
+order dates: 2015-01-01 to 2018-01-31
+orders whose shipping attributes differ across line items: 0
+orders where ship date - order date != recorded transit days: 0
+
+Label reconciliation (delivery status x took longer than scheduled x late flag):
+delivery_status    took_longer  late_flag
+Advance shipping   0            0            15127
+Late delivery      1            1            36048
+Shipping canceled  0            0             1205
+                   1            0             1650
+Shipping on time   0            0            11722
+
+========================================================================
+02  EXPLORE AND TEST
+========================================================================
+delivered orders: 62,897   late: 36,048 (57.3%)
+                 late  orders  late_rate  share_of_all_late
+ship_mode                                                  
+First Class      9602    9602     1.0000             0.2664
+Same Day         1648    3407     0.4837             0.0457
+Second Class     9803   12256     0.7999             0.2719
+Standard Class  14995   37632     0.3985             0.4160
+
+Scheduled days by mode:
+days_sched         0     1      2      4
+ship_mode                               
+First Class        0  9602      0      0
+Same Day        3407     0      0      0
+Second Class       0     0  12256      0
+Standard Class     0     0      0  37632
+
+Actual transit days by mode:
+days_real          0     1     2     3     4     5     6
+ship_mode                                               
+First Class        0     0  9602     0     0     0     0
+Same Day        1759  1648     0     0     0     0     0
+Second Class       0     0  2453  2422  2473  2452  2456
+Standard Class     0     0  7610  7517  7510  7458  7537
+
+Pearson chi-square, each factor x late:
+  ship_mode  chi2=  14530.75  df=3  p=0
+  market     chi2=      3.18  df=4  p=0.5289
+  segment    chi2=      1.06  df=2  p=0.5882
+  pay_type   chi2=      1.44  df=3  p=0.6958
+  order_qtr  chi2=      0.19  df=3  p=0.9786
+  weekend    chi2=      0.02  df=1  p=0.8911
+
+========================================================================
+03  LOGISTIC MODEL
+========================================================================
+train: 39,950 orders (late 57.4%)   holdout: 22,947 orders (late 57.2%)
+First Class in train: 6,135 late of 6,135 -> quasi-complete separation
+
+Screening subset (First Class excluded): 33,815 orders
+
+Step 1 - crude models:
+  ship_mode        Wald chi2=  3293.14  df=2  p=0
+  market           Wald chi2=     0.46  df=4  p=0.9771
+  segment          Wald chi2=     0.64  df=2  p=0.7267
+  pay_type         Wald chi2=     1.85  df=3  p=0.6038
+  order_qtr        Wald chi2=     2.39  df=3  p=0.4954
+  weekend          Wald chi2=     0.06  df=1  p=0.8055
+  n_items          Wald chi2=     0.44  df=1  p=0.5087
+  order_total_100  Wald chi2=     2.04  df=1  p=0.1537
+
+Step 2 - backward elimination (SLSTAY=0.10):
+  remove weekend          p=0.7945
+  remove segment          p=0.7880
+  remove market           p=0.7722
+  remove pay_type         p=0.6873
+  remove order_qtr        p=0.6447
+  remove n_items          p=0.6167
+  retained: ship_mode (p=0), order_total_100 (p=0.07306)
+const                     0.6926
+ship_mode=Same Day        1.2795
+ship_mode=Second Class    6.0281
+order_total_100           0.9932
+
+Step 3 - ship_mode*market interaction: Wald chi2=9.20 df=8 p=0.3253
+
+Step 5 - Firth models fitted on all training orders:
+
+  Model A: ship_mode
+    Intercept        estimate=  -0.4031  odds ratio=       0.668
+    First Class      estimate=   9.8181  odds ratio=   18363.841
+    Same Day         estimate=   0.2468  odds ratio=       1.280
+    Second Class     estimate=   1.7958  odds ratio=       6.024
+    train    AUC=0.7405  Brier=0.1880  error rate=0.3030
+    holdout  AUC=0.7427  Brier=0.1885  error rate=0.3047
+
+  Model B: ship_mode + order_total_100
+    Intercept        estimate=  -0.3673  odds ratio=       0.693
+    First Class      estimate=   9.8188  odds ratio=   18375.704
+    Same Day         estimate=   0.2465  odds ratio=       1.280
+    Second Class     estimate=   1.7961  odds ratio=       6.026
+    order_total_100  estimate=  -0.0068  odds ratio=       0.993
+    train    AUC=0.7423  Brier=0.1879  error rate=0.3030
+    holdout  AUC=0.7433  Brier=0.1885  error rate=0.3047
+
+========================================================================
+04  MONITORING (final model A on the 2017-2018 holdout)
+========================================================================
+baseline (training) AUC: 0.7405   alert if monthly AUC < 0.7105 or |observed - predicted| > 0.03
+  month  orders  observed  predicted     gap    auc alert
+2017-01    1685    0.5579     0.5579 -0.0001 0.7293    OK
+2017-02    1538    0.5715     0.5745 -0.0030 0.7378    OK
+2017-03    1710    0.5754     0.5784 -0.0029 0.7552    OK
+2017-04    1666    0.5504     0.5682 -0.0178 0.7341    OK
+2017-05    1672    0.5772     0.5807 -0.0035 0.7470    OK
+2017-06    1605    0.5676     0.5649  0.0027 0.7258    OK
+2017-07    1693    0.5706     0.5699  0.0007 0.7545    OK
+2017-08    1695    0.5788     0.5788  0.0000 0.7448    OK
+2017-09    1640    0.5738     0.5682  0.0056 0.7447    OK
+2017-10    2019    0.5632     0.5723 -0.0092 0.7473    OK
+2017-11    1956    0.5787     0.5737  0.0050 0.7435    OK
+2017-12    2031    0.5771     0.5701  0.0069 0.7430    OK
+2018-01    2037    0.5866     0.5819  0.0048 0.7447    OK
+
+monthly AUC range: 0.7258 to 0.7552   gap range: -0.0178 to +0.0069   alerts: 0
+
+Capture table (holdout, riskiest tier first, cumulative):
+                predicted_risk  orders  late  share_of_orders  share_of_late_caught
+ship_mode                                                                          
+First Class             0.9999    3467  3467           0.1511                0.2643
+Second Class            0.8010    4470  3566           0.3459                0.5361
+Same Day                0.4610    1255   656           0.4006                0.5861
+Standard Class          0.4006   13755  5431           1.0000                1.0000
