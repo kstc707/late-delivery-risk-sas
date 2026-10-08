@@ -8,9 +8,9 @@ A SAS project on 65,752 e-commerce orders: data-quality checks, chi-square tests
 
 ## What the analysis found
 
-1. **Lateness is a promise problem, not a random one.** Shipping mode is the only factor that matters. Market, customer segment, payment type, order size, quarter and weekend ordering show no association with late delivery (chi-square p-values from 0.53 to 0.98).
+1. **Lateness is a promise problem, not a random one.** Of the order attributes tested here, only shipping mode is associated with late delivery. Market, customer segment, payment type, order size, quarter and weekend ordering show no association (chi-square p-values from 0.53 to 0.98).
 2. **First Class is late every time.** It promises 1 day and takes exactly 2 days on all 9,602 delivered orders. That one service level accounts for 26.6% of all late deliveries, and a 2-day promise would have been met on every one of them.
-3. **A one-variable model is the right model.** Backward elimination kept shipping mode and, at a borderline p-value of 0.07, order value. Order value moved holdout AUC from 0.7427 to 0.7433, so it was dropped.
+3. **Among these candidates, a one-variable model is the right model.** Backward elimination kept shipping mode and, at a borderline p-value of 0.07, order value. Order value moved holdout AUC from 0.7427 to 0.7433, so it was dropped.
 4. **The model held up after deployment.** Fitted on 2015–2016 and tracked over the next 13 months, monthly AUC stayed between 0.726 and 0.755 against 0.740 in training, and predicted late rates stayed within 1.8 points of observed. No month triggered an alert.
 5. **Where operations should look first.** First Class and Second Class are 34.6% of orders and 53.6% of late deliveries.
 
@@ -68,7 +68,8 @@ Decisions worth explaining:
 
 ## Limitations
 
-- The dataset is a published teaching dataset. Its transit times are fixed or evenly spread within each shipping mode, which is why no other factor adds signal. Real carrier data would have route, weather and capacity effects.
+- Order time of day was not tested here. A follow-up analysis in Python found that Same Day orders placed at or after noon are always late; adding that one term lifts holdout AUC from 0.743 to 0.774. It is the next change to make to this model.
+- The dataset is a published teaching dataset. Its transit times are fixed or evenly spread within each shipping mode. Real carrier data would have route, weather and capacity effects.
 - With one categorical predictor the model produces four distinct risk scores, so it ranks service levels rather than individual orders.
 - The alert tolerances are judgment calls, not derived from a cost model.
 
